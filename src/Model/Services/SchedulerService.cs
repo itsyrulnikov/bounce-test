@@ -79,7 +79,7 @@ public class SchedulerService : ISchedulerService
             .Where(item => item.AvailableAt == null ||
                            item.AvailableAt <= DateTime.UtcNow.AddDays(7));
 
-        return TryReserveForSuitableRooms(
+        return TryReserveSuitableRooms(
             suitableRooms,
             doctor,
             room => room.WithCT ?
@@ -104,13 +104,13 @@ public class SchedulerService : ISchedulerService
             .Where(item => item.AvailableAt == null ||
                            item.AvailableAt <= DateTime.UtcNow.AddDays(7));
 
-        return TryReserveForSuitableRooms(
+        return TryReserveSuitableRooms(
             suitableRooms,
             doctor,
             _ => HeartSurgeryDuration);
     }
 
-    private static Reservation? TryReserveForSuitableRooms(
+    private static Reservation? TryReserveSuitableRooms(
         IEnumerable<SuitableRoom> suitableRooms,
         Doctor doctor,
         Func<OperationRoom, TimeSpan> durationProvider)
