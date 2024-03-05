@@ -9,6 +9,7 @@ builder.Services.AddControllers();
 builder.Services.AddEndpointsApiExplorer();
 builder.Services.AddSwaggerGen();
 builder.Services.AddSingleton<ISchedulerService, SchedulerService>();
+builder.Services.AddSingleton<IReservationAlgorithm, GreedyReservationAlgorithm>();
 
 var app = builder.Build();
 
