@@ -11,6 +11,7 @@ builder.Services.AddEndpointsApiExplorer();
 builder.Services.AddSwaggerGen();
 builder.Services.AddSingleton<ISchedulerService, SchedulerService>();
 builder.Services.AddSingleton<IReservationAlgorithm, GreedyReservationAlgorithm>();
+builder.Services.AddSingleton<INextStartDateTimeCalculator, NextStartDateTimeCalculator>();
 
 var app = builder.Build();
 

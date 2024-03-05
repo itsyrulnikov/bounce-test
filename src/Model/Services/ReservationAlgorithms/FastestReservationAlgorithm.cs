@@ -4,6 +4,13 @@ namespace Model.Services.ReservationAlgorithms;
 
 public class FastestReservationAlgorithm : IReservationAlgorithm
 {
+    private readonly INextStartDateTimeCalculator _startDateTimeCalculator;
+
+    public FastestReservationAlgorithm(INextStartDateTimeCalculator startDateTimeCalculator)
+    {
+        _startDateTimeCalculator = startDateTimeCalculator;
+    }
+
     public Reservation? TryReserve(Hospital hospital, Doctor doctor)
     {
         //handle multi-concurrent requests
@@ -63,30 +70,15 @@ public class FastestReservationAlgorithm : IReservationAlgorithm
             _ => SchedulerSettings.HeartSurgeryDuration);
     }
 
-    private static Reservation? TryReserveSuitableRooms(
-        SuitableRoom suitableRooms,
+    private Reservation? TryReserveSuitableRooms(
+        SuitableRoom suitableRoom,
         Doctor doctor,
         Func<OperationRoom, TimeSpan> durationProvider)
     {
-        // assume that timezone is Utc for simplicity
-        var startedAt = suitableRooms.AvailableAt ??
-                        DateTime.UtcNow.AddMinutes(-DateTime.UtcNow.Minute)
-                            .AddHours(1);
-        var duration = durationProvider(suitableRooms.Room);
-        if (startedAt.Hour < SchedulerSettings.StartWorkingHour)
-        {
-            startedAt = startedAt
-                .AddHours(-startedAt.Hour)
-                .AddHours(SchedulerSettings.StartWorkingHour);
-        }
 
-        var endedAt = startedAt.Add(duration);
-        if (endedAt.Hour is < SchedulerSettings.StartWorkingHour or > SchedulerSettings.EndWorkingHour)
-        {
-            // try schedule for the next day
-            startedAt = startedAt.Date.AddDays(1).AddHours(SchedulerSettings.StartWorkingHour);
-        }
-
+        var duration = durationProvider(suitableRoom.Room);
+        var startedAt = _startDateTimeCalculator
+            .CalculateNextStartedAt(suitableRoom.AvailableAt, duration);
         if (startedAt > DateTime.UtcNow.AddDays(7))
             //room is busy this week
             return null;
@@ -96,10 +88,10 @@ public class FastestReservationAlgorithm : IReservationAlgorithm
             Id = Guid.NewGuid(),
             StartedAt = startedAt,
             Doctor = doctor,
-            Room = suitableRooms.Room,
+            Room = suitableRoom.Room,
             EndedAt = startedAt.Add(duration)
         };
-        suitableRooms.Room.Reservations.Add(reservation);
+        suitableRoom.Room.Reservations.Add(reservation);
 
         return reservation;
     }

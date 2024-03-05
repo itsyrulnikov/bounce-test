@@ -1,9 +1,17 @@
+using Model.DTOs;
 using Model.Entities;
 
 namespace Model.Services.ReservationAlgorithms;
 
 public class GreedyReservationAlgorithm : IReservationAlgorithm
 {
+    private readonly INextStartDateTimeCalculator _startDateTimeCalculator;
+
+    public GreedyReservationAlgorithm(INextStartDateTimeCalculator startDateTimeCalculator)
+    {
+        _startDateTimeCalculator = startDateTimeCalculator;
+    }
+
     public Reservation? TryReserve(Hospital hospital, Doctor doctor)
     {
         //handle multi-concurrent requests
@@ -62,31 +70,17 @@ public class GreedyReservationAlgorithm : IReservationAlgorithm
             _ => SchedulerSettings.HeartSurgeryDuration);
     }
 
-    private static Reservation? TryReserveSuitableRooms(
+    private Reservation? TryReserveSuitableRooms(
         IEnumerable<SuitableRoom> suitableRooms,
         Doctor doctor,
         Func<OperationRoom, TimeSpan> durationProvider)
     {
-        foreach (var item in suitableRooms)
+        foreach (var suitableRoom in suitableRooms)
         {
             // assume that timezone is Utc for simplicity
-            var startedAt = item.AvailableAt ??
-                            DateTime.UtcNow.AddMinutes(-DateTime.UtcNow.Minute)
-                                .AddHours(1);
-            var duration = durationProvider(item.Room);
-            if (startedAt.Hour < SchedulerSettings.StartWorkingHour)
-            {
-                startedAt = startedAt
-                    .AddHours(-startedAt.Hour)
-                    .AddHours(SchedulerSettings.StartWorkingHour);
-            }
-
-            var endedAt = startedAt.Add(duration);
-            if (endedAt.Hour is < SchedulerSettings.StartWorkingHour or > SchedulerSettings.EndWorkingHour)
-            {
-                // try schedule for the next day
-                startedAt = startedAt.Date.AddDays(1).AddHours(SchedulerSettings.StartWorkingHour);
-            }
+            var duration = durationProvider(suitableRoom.Room);
+            var startedAt = _startDateTimeCalculator
+                .CalculateNextStartedAt(suitableRoom.AvailableAt, duration);
 
             if (startedAt > DateTime.UtcNow.AddDays(7))
                 //room is busy this week
@@ -97,16 +91,14 @@ public class GreedyReservationAlgorithm : IReservationAlgorithm
                 Id = Guid.NewGuid(),
                 StartedAt = startedAt,
                 Doctor = doctor,
-                Room = item.Room,
+                Room = suitableRoom.Room,
                 EndedAt = startedAt.Add(duration)
             };
-            item.Room.Reservations.Add(reservation);
+            suitableRoom.Room.Reservations.Add(reservation);
 
             return reservation;
         }
 
         return null;
     }
-
-    private record SuitableRoom(OperationRoom Room, DateTime? AvailableAt);
 }
