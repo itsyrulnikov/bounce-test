@@ -1,6 +1,6 @@
 using Model.Entities;
 
-namespace Model.Services;
+namespace Model.Services.ReservationAlgorithms;
 
 public interface IReservationAlgorithm
 {

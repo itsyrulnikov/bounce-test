@@ -1,4 +1,5 @@
 using Model.Services;
+using Model.Services.ReservationAlgorithms;
 
 var builder = WebApplication.CreateBuilder(args);
 

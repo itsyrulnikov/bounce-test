@@ -1,6 +1,6 @@
 using Model.Entities;
 
-namespace Model.Services;
+namespace Model.Services.ReservationAlgorithms;
 
 public class GreedyReservationAlgorithm : IReservationAlgorithm
 {
@@ -74,14 +74,23 @@ public class GreedyReservationAlgorithm : IReservationAlgorithm
                             DateTime.UtcNow.AddMinutes(-DateTime.UtcNow.Minute)
                                 .AddHours(1);
             var duration = durationProvider(item.Room);
-            if (startedAt.Add(duration).Hour > SchedulerSettings.EndWorkingHour)
+            if (startedAt.Hour < SchedulerSettings.StartWorkingHour)
+            {
+                startedAt = startedAt
+                    .AddHours(-startedAt.Hour)
+                    .AddHours(SchedulerSettings.StartWorkingHour);
+            }
+
+            var endedAt = startedAt.Add(duration);
+            if (endedAt.Hour is < SchedulerSettings.StartWorkingHour or > SchedulerSettings.EndWorkingHour)
             {
                 // try schedule for the next day
                 startedAt = startedAt.Date.AddDays(1).AddHours(SchedulerSettings.StartWorkingHour);
-                if (startedAt > DateTime.UtcNow.AddDays(7))
-                    //room is busy this week
-                    continue;
             }
+
+            if (startedAt > DateTime.UtcNow.AddDays(7))
+                //room is busy this week
+                continue;
 
             var reservation = new Reservation
             {
